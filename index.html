@@ -1,0 +1,814 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaborative Notes with Fluid Framework</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.11.3/font/bootstrap-icons.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f8f9fa;
+            color: #333;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .header {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #2c3e50;
+            margin-bottom: 10px;
+        }
+
+        .connection-status {
+            padding: 10px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .status-connecting {
+            background: #fff3cd;
+            color: #856404;
+        }
+
+        .status-connected {
+            background: #e8f5e8;
+            color: #27ae60;
+        }
+
+        .status-error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .toolbar {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #3498db;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #2980b9;
+        }
+        
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background: #229954;
+        }
+        
+        .btn-danger {
+            background: #e74c3c;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c0392b;
+        }
+        
+        .notes-container {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 40px 50px;
+            min-height: 600px;
+            max-width: 800px;
+            margin: 0 auto;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, serif;
+            line-height: 1.7;
+        }
+        
+        .document-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            padding-bottom: 15px;
+            border-bottom: 2px solid #e1e8ed;
+        }
+        
+        /* Base note styling */
+        .note-item {
+            margin: 6px 0;
+            transition: all 0.2s;
+            position: relative;
+            display: flex;
+            align-items: flex-start;
+            gap: 8px;
+            cursor: move;
+        }
+
+        .note-item:hover {
+            background: rgba(52, 152, 219, 0.05);
+            border-radius: 4px;
+        }
+
+        .note-item.dragging {
+            opacity: 0.5;
+            transform: rotate(2deg);
+            z-index: 1000;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+
+        .note-item.drag-over {
+            border-top: 3px solid #3498db;
+            margin-top: 8px;
+        }
+
+        .note-item.drag-over-bottom {
+            border-bottom: 3px solid #3498db;
+            margin-bottom: 8px;
+        }
+
+        .drag-handle {
+            color: #ccc;
+            font-size: 12px;
+            margin-top: 2px;
+            cursor: grab;
+            user-select: none;
+            min-width: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .drag-handle:hover {
+            color: #999;
+        }
+
+        .drag-handle:active {
+            cursor: grabbing;
+        }
+        
+        /* Hierarchy levels with proper indentation */
+        .note-item.level-0 {
+            margin-left: 0;
+            margin-top: 16px;
+            margin-bottom: 12px;
+        }
+        
+        .note-item.level-1 {
+            margin-left: 30px;
+            margin-top: 8px;
+            margin-bottom: 6px;
+        }
+        
+        .note-item.level-2 {
+            margin-left: 60px;
+            margin-top: 6px;
+            margin-bottom: 4px;
+        }
+        
+        .note-item.level-3 {
+            margin-left: 90px;
+            margin-top: 4px;
+            margin-bottom: 3px;
+        }
+        
+        .note-item.level-4 {
+            margin-left: 120px;
+            margin-top: 3px;
+            margin-bottom: 2px;
+        }
+        
+        /* Bullet styling */
+        .note-bullet {
+            font-size: 14px;
+            color: #666;
+            margin-top: 1px;
+            min-width: 20px;
+            flex-shrink: 0;
+            font-weight: 600;
+        }
+        
+        /* Main content area */
+        .note-main {
+            flex: 1;
+            background: #f8f9fa;
+            border-radius: 6px;
+            padding: 10px 12px;
+            border-left: 3px solid #3498db;
+        }
+        
+        .note-item.level-0 .note-main {
+            background: #f0f7ff;
+            border-left: 3px solid #2c3e50;
+            padding: 14px 16px;
+        }
+        
+        .note-item.level-1 .note-main {
+            border-left-color: #3498db;
+            padding: 10px 12px;
+        }
+        
+        .note-item.level-2 .note-main {
+            border-left-color: #27ae60;
+            background: #f8fff8;
+            padding: 8px 10px;
+        }
+        
+        .note-item.level-3 .note-main {
+            border-left-color: #f39c12;
+            background: #fffef8;
+            padding: 6px 8px;
+        }
+        
+        .note-item.level-4 .note-main {
+            border-left-color: #e74c3c;
+            background: #fff8f8;
+            padding: 5px 7px;
+        }
+        
+        .note-item:hover .note-main {
+            transform: translateX(3px);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        
+        .note-text {
+            margin-bottom: 8px;
+        }
+        
+        .note-title {
+            font-weight: 600;
+            color: #2c3e50;
+            display: inline;
+        }
+        
+        .note-item.level-0 .note-title {
+            font-size: 18px;
+            display: block;
+            margin-bottom: 6px;
+        }
+        
+        .note-item.level-1 .note-title {
+            font-size: 16px;
+        }
+        
+        .note-item.level-2 .note-title {
+            font-size: 15px;
+        }
+        
+        .note-item.level-3 .note-title {
+            font-size: 14px;
+        }
+        
+        .note-item.level-4 .note-title {
+            font-size: 13px;
+        }
+        
+        .note-content {
+            color: #555;
+            line-height: 1.5;
+            display: inline;
+        }
+        
+        .note-meta {
+            font-size: 10px;
+            color: #999;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 6px;
+            padding-top: 6px;
+            border-top: 1px solid #eee;
+        }
+
+        .author-info {
+            font-style: italic;
+        }
+
+        .note-actions {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .action-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-size: 9px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+            margin-right: 4px;
+        }
+
+        .action-btn:hover {
+            background: #f0f0f0;
+            border-color: #3498db;
+            color: #3498db;
+        }
+
+        .action-btn.delete-btn {
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .action-btn.delete-btn:hover {
+            background: #fef2f2;
+            border-color: #c0392b;
+            color: #c0392b;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+        }
+
+        .comment-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 2px 6px;
+            font-size: 9px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+            font-weight: 400;
+        }
+
+        .comment-btn:hover {
+            background: #f0f7ff;
+            border-color: #3498db;
+            color: #3498db;
+        }
+
+        .comment-btn.has-comments {
+            background: #e3f2fd;
+            border-color: #2196f3;
+            color: #1976d2;
+            font-weight: 600;
+            box-shadow: 0 1px 3px rgba(33, 150, 243, 0.2);
+        }
+
+        .comment-btn.has-comments:hover {
+            background: #bbdefb;
+            border-color: #1976d2;
+            color: #0d47a1;
+            transform: translateY(-1px);
+            box-shadow: 0 2px 5px rgba(33, 150, 243, 0.3);
+        }
+
+        .comment-icon {
+            font-size: 10px;
+            margin-right: 3px;
+            color: inherit;
+        }
+
+        .note-main:hover {
+            background: #f5f5f5;
+        }
+
+        .note-main {
+            transition: background-color 0.2s;
+        }
+
+        /* Comments section styling */
+        .comments-section {
+            margin-top: 10px;
+            padding: 8px 12px;
+            background: #f9f9f9;
+            border-radius: 4px;
+            border-left: 3px solid #ddd;
+            display: none;
+        }
+
+        .comments-section.expanded {
+            display: block;
+            animation: slideDown 0.3s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                max-height: 0;
+                padding-top: 0;
+                padding-bottom: 0;
+            }
+            to {
+                opacity: 1;
+                max-height: 300px;
+                padding-top: 8px;
+                padding-bottom: 8px;
+            }
+        }
+
+        .comments-header {
+            font-size: 11px;
+            font-weight: 600;
+            color: #666;
+            margin-bottom: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .comments-list {
+            max-height: 120px;
+            overflow-y: auto;
+            margin-bottom: 8px;
+        }
+
+        .comment-item {
+            background: white;
+            padding: 6px 8px;
+            margin-bottom: 4px;
+            border-radius: 3px;
+            border-left: 2px solid #e3f2fd;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+
+        .comment-item:last-child {
+            margin-bottom: 0;
+        }
+
+        .comment-content {
+            color: #333;
+            margin-bottom: 2px;
+        }
+
+        .comment-meta {
+            color: #999;
+            font-size: 10px;
+            font-style: italic;
+        }
+
+        .close-comments-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 1px 4px;
+            font-size: 9px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .close-comments-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .comment-form {
+            display: none;
+            border-top: 1px solid #e0e0e0;
+            padding-top: 8px;
+            margin-top: 8px;
+        }
+
+        .comment-form.active {
+            display: block;
+        }
+
+        .comment-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            font-size: 11px;
+            resize: vertical;
+            min-height: 40px;
+            font-family: inherit;
+        }
+
+        .comment-input:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.1);
+        }
+
+        .comment-form-actions {
+            display: flex;
+            gap: 6px;
+            margin-top: 6px;
+            justify-content: flex-end;
+        }
+
+        .comment-submit-btn, .comment-cancel-btn {
+            background: none;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            padding: 3px 8px;
+            font-size: 9px;
+            cursor: pointer;
+            color: #666;
+            transition: all 0.2s;
+        }
+
+        .comment-submit-btn {
+            background: #3498db;
+            color: white;
+            border-color: #3498db;
+        }
+
+        .comment-submit-btn:hover {
+            background: #2980b9;
+        }
+
+        .comment-cancel-btn:hover {
+            background: #f0f0f0;
+        }
+
+        .comment-submit-btn:disabled {
+            background: #ddd;
+            border-color: #ddd;
+            cursor: not-allowed;
+        }
+
+        .note-votes {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .vote-btn {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 3px;
+            width: auto;
+            height: 18px;
+            padding: 0 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            font-size: 9px;
+            font-weight: 500;
+            color: #666;
+        }
+
+        .vote-btn:hover {
+            background: #f8f9fa;
+            border-color: #bbb;
+        }
+
+        .vote-btn.upvote:hover {
+            background: #e8f5e8;
+            border-color: #27ae60;
+            color: #27ae60;
+        }
+
+        .vote-btn.downvote:hover {
+            background: #fef2f2;
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .vote-btn.voted {
+            font-weight: 600;
+        }
+
+        .vote-btn.voted.upvote {
+            background: #e8f5e8;
+            border-color: #27ae60;
+            color: #27ae60;
+        }
+
+        .vote-btn.voted.downvote {
+            background: #fef2f2;
+            border-color: #e74c3c;
+            color: #e74c3c;
+        }
+
+        .vote-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        .vote-count {
+            font-weight: 600;
+            min-width: 20px;
+            text-align: center;
+            font-size: 10px;
+            color: #333;
+            margin: 0 4px;
+        }
+        
+        .add-note-form {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin: 20px 0;
+            border: 2px dashed #ddd;
+            display: none;
+        }
+        
+        .add-note-form.active {
+            border-color: #3498db;
+            background: #ebf3fd;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            font-size: 14px;
+        }
+        
+        .form-group textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 50px;
+            color: #666;
+        }
+
+        .collaboration-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+
+        .collaboration-info h3 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+
+        .url-share {
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            word-break: break-all;
+            margin-bottom: 10px;
+        }
+
+        .active-users {
+            margin-top: 15px;
+            padding-top: 10px;
+            border-top: 1px solid #bbdefb;
+        }
+
+        .active-users h4 {
+            font-size: 12px;
+            color: #1976d2;
+            margin-bottom: 8px;
+            font-weight: 600;
+        }
+
+        .users-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .user-badge {
+            background: #2196f3;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .user-badge.is-you {
+            background: #4caf50;
+        }
+
+        .user-status {
+            width: 6px;
+            height: 6px;
+            background: #fff;
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        /* Visual connection lines for hierarchy */
+        .note-item.level-1::before,
+        .note-item.level-2::before,
+        .note-item.level-3::before,
+        .note-item.level-4::before {
+            content: '';
+            position: absolute;
+            left: -15px;
+            top: 15px;
+            width: 10px;
+            height: 1px;
+            background: #ddd;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 Document Collaboration</h1>
+            <p>Create structured documents with real-time collaborative editing</p>
+        </div>
+        
+        <div id="connectionStatus" class="connection-status status-connecting">
+            🔄 Initializing Fluid Framework...
+        </div>
+
+        <div id="collaborationInfo" class="collaboration-info" style="display: none;">
+            <h3>🎉 Ready for Collaboration!</h3>
+            <p>Share this URL with others to collaborate in real-time:</p>
+            <div class="url-share" id="shareUrl">Loading...</div>
+            <div class="active-users">
+                <h4><i class="bi bi-people-fill"></i> Active Users</h4>
+                <div class="users-list" id="activeUsersList">
+                    <div class="user-badge">Loading...</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="toolbar">
+            <button class="btn btn-primary" id="addNoteBtn">📝 Add Section</button>
+            <button class="btn btn-success" id="addSampleBtn">📋 Add Example</button>
+            <button class="btn btn-danger" id="clearAllBtn">🗑️ Clear Document</button>
+        </div>
+        
+        <div class="add-note-form" id="addNoteForm">
+            <h3 id="formTitle">Add New Section</h3>
+            <div class="form-group">
+                <label>Section Heading:</label>
+                <input type="text" id="noteTitle" placeholder="Enter section heading...">
+            </div>
+            <div class="form-group">
+                <label>Content:</label>
+                <textarea id="noteContent" placeholder="Enter section content..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Parent Section:</label>
+                <select id="parentNoteSelect">
+                    <option value="">Main Section</option>
+                </select>
+            </div>
+            <button class="btn btn-success" id="saveNoteBtn">💾 Add Section</button>
+            <button class="btn" id="cancelNoteBtn">❌ Cancel</button>
+        </div>
+        
+        <div class="notes-container">
+            <div class="document-title">📄 Collaborative Document</div>
+            <div id="notesContainer">
+                <div class="loading">Loading Fluid Framework...</div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="/src/main.js"></script>
+</body>
+</html>

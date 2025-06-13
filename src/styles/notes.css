@@ -1,0 +1,329 @@
+/* Note item base styling */
+.note-item {
+    margin: 6px 0;
+    transition: all 0.2s;
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    cursor: move;
+}
+
+.note-item:hover {
+    background: rgba(52, 152, 219, 0.05);
+    border-radius: 4px;
+}
+
+.note-item.dragging {
+    opacity: 0.5;
+    transform: rotate(2deg);
+    z-index: 1000;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+}
+
+.note-item.drag-over {
+    border-top: 3px solid #3498db;
+    margin-top: 8px;
+}
+
+.note-item.drag-over-bottom {
+    border-bottom: 3px solid #3498db;
+    margin-bottom: 8px;
+}
+
+/* Drag handle */
+.drag-handle {
+    color: #ccc;
+    font-size: 12px;
+    margin-top: 2px;
+    cursor: grab;
+    user-select: none;
+    min-width: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.drag-handle:hover {
+    color: #999;
+}
+
+.drag-handle:active {
+    cursor: grabbing;
+}
+
+/* Hierarchy levels */
+.note-item.level-0 {
+    margin-left: 0;
+    margin-top: 16px;
+    margin-bottom: 12px;
+}
+
+.note-item.level-1 {
+    margin-left: 30px;
+    margin-top: 8px;
+    margin-bottom: 6px;
+}
+
+.note-item.level-2 {
+    margin-left: 60px;
+    margin-top: 6px;
+    margin-bottom: 4px;
+}
+
+.note-item.level-3 {
+    margin-left: 90px;
+    margin-top: 4px;
+    margin-bottom: 3px;
+}
+
+.note-item.level-4 {
+    margin-left: 120px;
+    margin-top: 3px;
+    margin-bottom: 2px;
+}
+
+/* Bullet styling */
+.note-bullet {
+    font-size: 14px;
+    color: #666;
+    margin-top: 1px;
+    min-width: 20px;
+    flex-shrink: 0;
+    font-weight: 600;
+}
+
+/* Main content area */
+.note-main {
+    flex: 1;
+    background: #f8f9fa;
+    border-radius: 6px;
+    padding: 10px 12px;
+    border-left: 3px solid #3498db;
+    transition: all 0.2s;
+}
+
+.note-item.level-0 .note-main {
+    background: #f0f7ff;
+    border-left: 3px solid #2c3e50;
+    padding: 14px 16px;
+}
+
+.note-item.level-1 .note-main {
+    border-left-color: #3498db;
+    padding: 10px 12px;
+}
+
+.note-item.level-2 .note-main {
+    border-left-color: #27ae60;
+    background: #f8fff8;
+    padding: 8px 10px;
+}
+
+.note-item.level-3 .note-main {
+    border-left-color: #f39c12;
+    background: #fffef8;
+    padding: 6px 8px;
+}
+
+.note-item.level-4 .note-main {
+    border-left-color: #e74c3c;
+    background: #fff8f8;
+    padding: 5px 7px;
+}
+
+.note-item:hover .note-main {
+    transform: translateX(3px);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+}
+
+/* Note text content */
+.note-text {
+    margin-bottom: 8px;
+}
+
+.note-title {
+    font-weight: 600;
+    color: #2c3e50;
+    display: inline;
+}
+
+.note-item.level-0 .note-title {
+    font-size: 18px;
+    display: block;
+    margin-bottom: 6px;
+}
+
+.note-item.level-1 .note-title {
+    font-size: 16px;
+}
+
+.note-item.level-2 .note-title {
+    font-size: 15px;
+}
+
+.note-item.level-3 .note-title {
+    font-size: 14px;
+}
+
+.note-item.level-4 .note-title {
+    font-size: 13px;
+}
+
+.note-content {
+    color: #555;
+    line-height: 1.5;
+    display: inline;
+}
+
+/* Note metadata and actions */
+.note-meta {
+    font-size: 10px;
+    color: #999;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid #eee;
+}
+
+.author-info {
+    font-style: italic;
+}
+
+.note-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+/* Action buttons */
+.action-btn {
+    background: none;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    padding: 2px 6px;
+    font-size: 9px;
+    cursor: pointer;
+    color: #666;
+    transition: all 0.2s;
+    margin-right: 4px;
+}
+
+.action-btn:hover {
+    background: #f0f0f0;
+    border-color: #3498db;
+    color: #3498db;
+}
+
+.action-btn.delete-btn {
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.action-btn.delete-btn:hover {
+    background: #fef2f2;
+    border-color: #c0392b;
+    color: #c0392b;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(231, 76, 60, 0.2);
+}
+
+.action-btn.file-btn {
+    border-color: #9b59b6;
+    color: #9b59b6;
+}
+
+.action-btn.file-btn:hover {
+    background: #f4f1f8;
+    border-color: #8e44ad;
+    color: #8e44ad;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 4px rgba(155, 89, 182, 0.2);
+}
+
+/* Voting system */
+.note-votes {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.vote-btn {
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 3px;
+    width: auto;
+    height: 18px;
+    padding: 0 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    font-size: 9px;
+    font-weight: 500;
+    color: #666;
+}
+
+.vote-btn:hover {
+    background: #f8f9fa;
+    border-color: #bbb;
+}
+
+.vote-btn.upvote:hover {
+    background: #e8f5e8;
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.vote-btn.downvote:hover {
+    background: #fef2f2;
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.vote-btn.voted {
+    font-weight: 600;
+}
+
+.vote-btn.voted.upvote {
+    background: #e8f5e8;
+    border-color: #27ae60;
+    color: #27ae60;
+}
+
+.vote-btn.voted.downvote {
+    background: #fef2f2;
+    border-color: #e74c3c;
+    color: #e74c3c;
+}
+
+.vote-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.vote-count {
+    font-weight: 600;
+    min-width: 20px;
+    text-align: center;
+    font-size: 10px;
+    color: #333;
+    margin: 0 4px;
+}
+
+/* Visual connection lines for hierarchy */
+.note-item.level-1::before,
+.note-item.level-2::before,
+.note-item.level-3::before,
+.note-item.level-4::before {
+    content: '';
+    position: absolute;
+    left: -15px;
+    top: 15px;
+    width: 10px;
+    height: 1px;
+    background: #ddd;
+}

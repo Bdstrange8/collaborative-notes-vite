@@ -104,7 +104,7 @@ async function getOrCreateContainer(client, containerSchema) {
 }
 
 async function handleSchemaCompatibility(schemas) {
-    const SCHEMA_VERSION = "v2";
+    const SCHEMA_VERSION = "v3"; // Updated to v3 for file support
     let isNewContainer = false;
     
     if (notesData.compatibility.canInitialize) {
@@ -125,7 +125,7 @@ async function handleSchemaCompatibility(schemas) {
         });
         
         notesData.initialize(initialDoc);
-        console.log('✅ Initialized new document');
+        console.log('✅ Initialized new document with file support');
         isNewContainer = true;
         
     } else if (notesData.compatibility.canUpgrade) {
@@ -133,15 +133,58 @@ async function handleSchemaCompatibility(schemas) {
         notesData.upgradeSchema();
         addMissingFields(SCHEMA_VERSION);
         
+        // Upgrade existing notes to include files array
+        upgradeNotesToIncludeFiles();
+        
     } else if (notesData.root) {
         console.log('✅ Joined existing collaboration');
         validateExistingSchema(SCHEMA_VERSION);
+        
+        // Ensure existing notes have files array
+        upgradeNotesToIncludeFiles();
         
     } else {
         throw new Error('Schema incompatible - need new container');
     }
     
     return isNewContainer;
+}
+
+function upgradeNotesToIncludeFiles() {
+    if (!notesData.root.notes) return;
+    
+    const notes = Array.from(notesData.root.notes);
+    let upgradedCount = 0;
+    
+    for (let i = 0; i < notes.length; i++) {
+        const note = notes[i];
+        if (!note.files) {
+            // Create empty files array for the upgrade
+            const emptyFiles = [];
+            
+            // Create a new note with files array
+            const upgradedNote = new window.Note({
+                id: note.id,
+                title: note.title,
+                content: note.content,
+                author: note.author,
+                timestamp: note.timestamp,
+                votes: note.votes || 0,
+                parentId: note.parentId || "",
+                level: note.level || 0,
+                files: emptyFiles, // Add empty files array
+            });
+            
+            // Replace the old note
+            notesData.root.notes.removeAt(i);
+            notesData.root.notes.insertAt(i, upgradedNote);
+            upgradedCount++;
+        }
+    }
+    
+    if (upgradedCount > 0) {
+        console.log(`🔧 Upgraded ${upgradedCount} notes to include files support`);
+    }
 }
 
 function addMissingFields(schemaVersion) {
@@ -169,7 +212,7 @@ function validateExistingSchema(schemaVersion) {
         console.log(`⚠️ Schema version mismatch: Document(${documentVersion}) vs App(${schemaVersion})`);
     }
     
-    const requiredFields = ['votes', 'fileAttachments'];
+    const requiredFields = ['votes'];
     for (const field of requiredFields) {
         if (!notesData.root[field]) {
             console.log(`⚠️ Document missing ${field} field - creating new container`);

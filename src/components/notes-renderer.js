@@ -2,6 +2,7 @@ import { notesData, currentUser } from '../fluid/client.js';
 import { addNote } from '../fluid/data-handlers.js';
 import { setupDragAndDrop } from '../ui/drag-drop.js';
 import { escapeHtml } from '../ui/ui-utils.js';
+import { createFilesSection } from '../components/file-manager.js';
 
 export function renderAllNotes() {
     const container = document.getElementById('notesContainer');
@@ -86,6 +87,9 @@ function createNoteElement(noteData, displayLevel) {
         commentButtonText = '<i class="bi bi-chat-right-fill comment-icon"></i> Comment';
     }
     
+    // Create file preview section
+    const filesSection = createFilesSection(noteData);
+    
     noteElement.innerHTML = `
         <div class="drag-handle">⋮⋮</div>
         ${outlineNumber ? `<div class="note-bullet">${outlineNumber}</div>` : ''}
@@ -94,14 +98,12 @@ function createNoteElement(noteData, displayLevel) {
                 <span class="note-title">${escapeHtml(noteData.title)}</span>${hasContent ? 
                     `<span class="note-content">${separator}${escapeHtml(noteData.content)}</span>` : ''}
             </div>
+            ${filesSection}
             <div class="note-meta">
                 <span class="author-info">— ${escapeHtml(noteData.author)}, ${noteData.timestamp}</span>
                 <div class="note-actions">
                     <button class="action-btn branch-btn" onclick="branchFromNote('${noteData.id}')" title="Add sub-section">
                         + Add
-                    </button>
-                    <button class="action-btn file-btn" onclick="showFileUploadDialog('${noteData.id}')" title="Attach file">
-                        📎 File
                     </button>
                     ${noteData.author === currentUser ? 
                         `<button class="action-btn delete-btn" onclick="deleteNote('${noteData.id}')" title="Delete this note (author only)">
@@ -139,9 +141,6 @@ function createNoteElement(noteData, displayLevel) {
                     </div>
                 </div>
             </div>
-            <div class="attachments-section" id="attachments-${noteData.id}">
-                <!-- File attachments will be populated here -->
-            </div>
         </div>
     `;
     
@@ -151,7 +150,9 @@ function createNoteElement(noteData, displayLevel) {
     // Add click handler for showing comments
     const noteMain = noteElement.querySelector('.note-main');
     noteMain.addEventListener('click', (e) => {
-        if (!e.target.closest('.note-actions') && !e.target.closest('.comments-section')) {
+        if (!e.target.closest('.note-actions') && 
+            !e.target.closest('.comments-section') && 
+            !e.target.closest('.files-section')) {
             window.toggleComments(noteData.id, noteData.title);
         }
     });
@@ -237,6 +238,11 @@ export function branchFromNote(parentId) {
     updateParentOptions();
     parentSelect.value = parentId;
     
+    // Clear form fields
+    document.getElementById('noteTitle').value = '';
+    document.getElementById('noteContent').value = '';
+    document.getElementById('noteFiles').value = '';
+    
     form.style.display = 'block';
     form.classList.add('active');
     document.getElementById('noteTitle').focus();
@@ -300,14 +306,6 @@ export function setupGlobalFunctions() {
         window.hideCommentForm = module.hideCommentForm;
         window.submitComment = module.submitComment;
         window.cancelComment = module.cancelComment;
-    });
-    
-    import('../components/file-manager.js').then(module => {
-        window.showFileUploadDialog = module.showFileUploadDialog;
-        window.downloadFile = module.downloadFile;
-        window.deleteFileAttachment = module.deleteFileAttachment;
-        window.openImagePreview = module.openImagePreview;
-        window.closeImagePreview = module.closeImagePreview;
     });
     
     import('../fluid/data-handlers.js').then(module => {

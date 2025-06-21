@@ -1,7 +1,7 @@
 import { SchemaFactory, TreeViewConfiguration } from "fluid-framework";
 
 export function createSchemas() {
-    const SCHEMA_VERSION = "v2";
+    const SCHEMA_VERSION = "v3"; // Increment version for file support
     const sf = new SchemaFactory(`collaborativeNotes_${SCHEMA_VERSION}`);
 
     // Define all schemas
@@ -28,15 +28,15 @@ export function createSchemas() {
 
     const FileAttachment = sf.object("FileAttachment", {
         id: sf.string,
-        noteId: sf.string,
-        fileName: sf.string,
-        fileType: sf.string,
-        fileSize: sf.number,
-        fileData: sf.string, // Base64 encoded file data
+        name: sf.string,
+        type: sf.string,
+        size: sf.number,
+        data: sf.string, // Base64 encoded file data
         uploadedBy: sf.string,
         uploadedAt: sf.string,
     });
 
+    // Updated Note schema with embedded files
     const Note = sf.object("Note", {
         id: sf.string,
         title: sf.string,
@@ -46,6 +46,7 @@ export function createSchemas() {
         votes: sf.number,
         parentId: sf.string,
         level: sf.number,
+        files: sf.array(FileAttachment), // NEW: Files embedded in each note
     });
 
     const NotesDocument = sf.object("NotesDocument", {
@@ -53,7 +54,7 @@ export function createSchemas() {
         notes: sf.array(Note),
         comments: sf.array(Comment),
         votes: sf.array(Vote),
-        fileAttachments: sf.array(FileAttachment),
+        fileAttachments: sf.array(FileAttachment), // Keep for backward compatibility
         activeUsers: sf.array(ActiveUser),
         lastNoteId: sf.number,
         lastCommentId: sf.number,

@@ -1,82 +1,225 @@
 import { notesData, currentUser } from '../fluid/client.js';
+import { escapeHtml } from '../ui/ui-utils.js';
 
-export function addFileAttachment(noteId, file) {
-    if (!notesData || !notesData.root || !window.FileAttachment) {
-        console.error('Cannot add file attachment: Fluid Framework not initialized');
-        return;
-    }
-
-    // Check file size (limit to 5MB for demo purposes)
-    const maxSize = 5 * 1024 * 1024; // 5MB
-    if (file.size > maxSize) {
-        alert('File too large. Maximum size is 5MB.');
-        return;
-    }
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        const fileId = (notesData.root.lastFileId + 1).toString();
-        notesData.root.lastFileId = parseInt(fileId);
-
-        const newFileAttachment = new window.FileAttachment({
-            id: fileId,
-            noteId: noteId,
-            fileName: file.name,
-            fileType: file.type,
-            fileSize: file.size,
-            fileData: e.target.result, // Base64 data URL
-            uploadedBy: currentUser,
-            uploadedAt: new Date().toLocaleString(),
-        });
-
-        notesData.root.fileAttachments.insertAtEnd(newFileAttachment);
-        console.log('📎 Added file attachment:', file.name, 'to note:', noteId);
-    };
+// File upload handling for new notes
+export async function handleFileUpload(files) {
+    const fileAttachments = [];
     
-    reader.readAsDataURL(file);
-}
-
-export function getFileAttachments(noteId) {
-    if (!notesData || !notesData.root || !notesData.root.fileAttachments) return [];
-    const attachments = Array.from(notesData.root.fileAttachments);
-    return attachments.filter(attachment => attachment.noteId === noteId);
-}
-
-export function deleteFileAttachment(fileId) {
-    if (!notesData || !notesData.root || !notesData.root.fileAttachments) return;
-    
-    const attachments = Array.from(notesData.root.fileAttachments);
-    const attachmentIndex = attachments.findIndex(attachment => attachment.id === fileId);
-    
-    if (attachmentIndex !== -1) {
-        const attachment = attachments[attachmentIndex];
-        
-        // Security check: Only the uploader can delete their own files
-        if (attachment.uploadedBy !== currentUser) {
-            alert('You can only delete files you uploaded!');
-            return;
+    for (const file of files) {
+        // Check file size (limit to 10MB for performance)
+        if (file.size > 10 * 1024 * 1024) {
+            alert(`File "${file.name}" is too large. Maximum size is 10MB.`);
+            continue;
         }
         
-        if (confirm(`Are you sure you want to delete "${attachment.fileName}"?`)) {
-            notesData.root.fileAttachments.removeAt(attachmentIndex);
-            console.log('🗑️ Deleted file attachment:', attachment.fileName);
+        try {
+            const fileData = await readFileAsDataURL(file);
+            const fileAttachment = {
+                id: generateFileId(),
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: fileData,
+                uploadedBy: currentUser,
+                uploadedAt: new Date().toLocaleString(),
+            };
+            
+            fileAttachments.push(fileAttachment);
+            console.log('📎 Processed file for upload:', file.name);
+        } catch (error) {
+            console.error('Error reading file:', file.name, error);
+            alert(`Error reading file "${file.name}"`);
         }
     }
+    
+    return fileAttachments;
 }
 
-export function downloadFile(fileId) {
-    if (!notesData || !notesData.root || !notesData.root.fileAttachments) return;
+function readFileAsDataURL(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = (e) => reject(e);
+        reader.readAsDataURL(file);
+    });
+}
+
+function generateFileId() {
+    return 'file_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+}
+
+// Create inline file preview for a note
+export function createFilesSection(noteData) {
+    if (!noteData.files || noteData.files.length === 0) {
+        return '';
+    }
+
+    const filesHtml = Array.from(noteData.files).map(file => {
+        return createFilePreview(file, noteData.id);
+    }).join('');
+
+    return `
+        <div class="files-section">
+            ${filesHtml}
+        </div>
+    `;
+}
+
+function createFilePreview(file, noteId) {
+    const fileType = file.type.toLowerCase();
+    const isImage = fileType.startsWith('image/');
+    const isPDF = fileType === 'application/pdf';
+    const isVideo = fileType.startsWith('video/');
+    const isAudio = fileType.startsWith('audio/');
     
-    const attachments = Array.from(notesData.root.fileAttachments);
-    const attachment = attachments.find(att => att.id === fileId);
-    
-    if (attachment) {
-        const link = document.createElement('a');
-        link.href = attachment.fileData;
-        link.download = attachment.fileName;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    const fileSizeFormatted = formatFileSize(file.size);
+    const fileName = escapeHtml(file.name);
+    const fileId = file.id;
+    const canDelete = file.uploadedBy === currentUser;
+
+    if (isImage) {
+        return `
+            <div class="file-preview image-preview">
+                <div class="file-header">
+                    <span class="file-icon">🖼️</span>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-size">(${fileSizeFormatted})</span>
+                    <div class="file-actions">
+                        <button class="file-action-btn download-btn" onclick="downloadFileFromNote('${noteId}', '${fileId}')" title="Download ${fileName}">
+                            📥
+                        </button>
+                        ${canDelete ? 
+                            `<button class="file-action-btn delete-btn" onclick="deleteFileFromNote('${noteId}', '${fileId}')" title="Delete file">
+                                🗑️
+                            </button>` : 
+                            ''
+                        }
+                    </div>
+                </div>
+                <div class="image-container">
+                    <img src="${file.data}" alt="${fileName}" class="preview-image" onclick="openImageModal('${noteId}', '${fileId}')" loading="lazy">
+                </div>
+                <div class="file-meta">
+                    Uploaded by ${escapeHtml(file.uploadedBy)} on ${file.uploadedAt}
+                </div>
+            </div>
+        `;
+    } else if (isPDF) {
+        return `
+            <div class="file-preview pdf-preview">
+                <div class="file-header">
+                    <span class="file-icon">📄</span>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-size">(${fileSizeFormatted})</span>
+                    <div class="file-actions">
+                        <button class="file-action-btn view-btn" onclick="viewFileFromNote('${noteId}', '${fileId}')" title="View ${fileName}">
+                            👁️
+                        </button>
+                        <button class="file-action-btn download-btn" onclick="downloadFileFromNote('${noteId}', '${fileId}')" title="Download ${fileName}">
+                            📥
+                        </button>
+                        ${canDelete ? 
+                            `<button class="file-action-btn delete-btn" onclick="deleteFileFromNote('${noteId}', '${fileId}')" title="Delete file">
+                                🗑️
+                            </button>` : 
+                            ''
+                        }
+                    </div>
+                </div>
+                <div class="pdf-container">
+                    <iframe src="${file.data}" class="pdf-preview-frame" title="${fileName}"></iframe>
+                </div>
+                <div class="file-meta">
+                    Uploaded by ${escapeHtml(file.uploadedBy)} on ${file.uploadedAt}
+                </div>
+            </div>
+        `;
+    } else if (isVideo) {
+        return `
+            <div class="file-preview video-preview">
+                <div class="file-header">
+                    <span class="file-icon">🎥</span>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-size">(${fileSizeFormatted})</span>
+                    <div class="file-actions">
+                        <button class="file-action-btn download-btn" onclick="downloadFileFromNote('${noteId}', '${fileId}')" title="Download ${fileName}">
+                            📥
+                        </button>
+                        ${canDelete ? 
+                            `<button class="file-action-btn delete-btn" onclick="deleteFileFromNote('${noteId}', '${fileId}')" title="Delete file">
+                                🗑️
+                            </button>` : 
+                            ''
+                        }
+                    </div>
+                </div>
+                <div class="video-container">
+                    <video controls class="preview-video" preload="metadata">
+                        <source src="${file.data}" type="${file.type}">
+                        Your browser does not support the video tag.
+                    </video>
+                </div>
+                <div class="file-meta">
+                    Uploaded by ${escapeHtml(file.uploadedBy)} on ${file.uploadedAt}
+                </div>
+            </div>
+        `;
+    } else if (isAudio) {
+        return `
+            <div class="file-preview audio-preview">
+                <div class="file-header">
+                    <span class="file-icon">🎵</span>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-size">(${fileSizeFormatted})</span>
+                    <div class="file-actions">
+                        <button class="file-action-btn download-btn" onclick="downloadFileFromNote('${noteId}', '${fileId}')" title="Download ${fileName}">
+                            📥
+                        </button>
+                        ${canDelete ? 
+                            `<button class="file-action-btn delete-btn" onclick="deleteFileFromNote('${noteId}', '${fileId}')" title="Delete file">
+                                🗑️
+                            </button>` : 
+                            ''
+                        }
+                    </div>
+                </div>
+                <div class="audio-container">
+                    <audio controls class="preview-audio" preload="metadata">
+                        <source src="${file.data}" type="${file.type}">
+                        Your browser does not support the audio tag.
+                    </audio>
+                </div>
+                <div class="file-meta">
+                    Uploaded by ${escapeHtml(file.uploadedBy)} on ${file.uploadedAt}
+                </div>
+            </div>
+        `;
+    } else {
+        // Generic file preview
+        const fileIcon = getFileIcon(fileType);
+        return `
+            <div class="file-preview generic-preview">
+                <div class="file-header">
+                    <span class="file-icon">${fileIcon}</span>
+                    <span class="file-name">${fileName}</span>
+                    <span class="file-size">(${fileSizeFormatted})</span>
+                    <div class="file-actions">
+                        <button class="file-action-btn download-btn" onclick="downloadFileFromNote('${noteId}', '${fileId}')" title="Download ${fileName}">
+                            📥
+                        </button>
+                        ${canDelete ? 
+                            `<button class="file-action-btn delete-btn" onclick="deleteFileFromNote('${noteId}', '${fileId}')" title="Delete file">
+                                🗑️
+                            </button>` : 
+                            ''
+                        }
+                    </div>
+                </div>
+                <div class="file-meta">
+                    Uploaded by ${escapeHtml(file.uploadedBy)} on ${file.uploadedAt}
+                </div>
+            </div>
+        `;
     }
 }
 
@@ -88,137 +231,172 @@ export function formatFileSize(bytes) {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
-export function getFileIcon(fileType) {
-    if (fileType.startsWith('image/')) return '🖼️';
-    if (fileType.includes('pdf')) return '📄';
-    if (fileType.includes('word') || fileType.includes('document')) return '📝';
+function getFileIcon(fileType) {
+    if (fileType.includes('text')) return '📝';
+    if (fileType.includes('word') || fileType.includes('document')) return '📄';
     if (fileType.includes('excel') || fileType.includes('spreadsheet')) return '📊';
-    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return '📊';
-    if (fileType.includes('audio')) return '🎵';
-    if (fileType.includes('video')) return '🎬';
-    if (fileType.includes('text')) return '📃';
-    if (fileType.includes('zip') || fileType.includes('rar')) return '📦';
-    return '📁';
+    if (fileType.includes('powerpoint') || fileType.includes('presentation')) return '📽️';
+    if (fileType.includes('zip') || fileType.includes('archive')) return '🗜️';
+    if (fileType.includes('code') || fileType.includes('script')) return '💻';
+    return '📎';
 }
 
-export function showFileUploadDialog(noteId) {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.multiple = true;
-    input.accept = '*/*';
-    
-    input.addEventListener('change', (e) => {
-        const files = Array.from(e.target.files);
-        files.forEach(file => {
-            addFileAttachment(noteId, file);
-        });
-    });
-    
-    input.click();
+// File actions for embedded files
+export function downloadFileFromNote(noteId, fileId) {
+    const file = findFileInNote(noteId, fileId);
+    if (file) {
+        const link = document.createElement('a');
+        link.href = file.data;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        console.log('📥 Downloaded file:', file.name);
+    }
 }
 
-export function updateAllFileAttachments() {
-    if (!notesData || !notesData.root) return;
-    
+export function viewFileFromNote(noteId, fileId) {
+    const file = findFileInNote(noteId, fileId);
+    if (file) {
+        window.open(file.data, '_blank');
+    }
+}
+
+export function deleteFileFromNote(noteId, fileId) {
     const notes = Array.from(notesData.root.notes);
-    notes.forEach(note => {
-        renderFileAttachments(note.id);
-    });
-}
-
-export function renderFileAttachments(noteId) {
-    const attachmentsContainer = document.getElementById(`attachments-${noteId}`);
-    if (!attachmentsContainer) return;
+    const noteIndex = notes.findIndex(note => note.id === noteId);
     
-    const attachments = getFileAttachments(noteId);
-    
-    if (attachments.length === 0) {
-        attachmentsContainer.innerHTML = '';
-        attachmentsContainer.style.display = 'none';
+    if (noteIndex === -1) {
+        console.error('Note not found for file deletion:', noteId);
         return;
     }
     
-    attachmentsContainer.style.display = 'block';
+    const note = notes[noteIndex];
+    const files = Array.from(note.files);
+    const fileIndex = files.findIndex(file => file.id === fileId);
     
-    const attachmentsHtml = attachments.map(attachment => {
-        const fileIcon = getFileIcon(attachment.fileType);
-        const isImage = attachment.fileType.startsWith('image/');
-        const canDelete = attachment.uploadedBy === currentUser;
+    if (fileIndex === -1) {
+        console.error('File not found for deletion:', fileId);
+        return;
+    }
+    
+    const file = files[fileIndex];
+    
+    // Security check: Only the uploader can delete their own files
+    if (file.uploadedBy !== currentUser) {
+        alert('You can only delete files you uploaded!');
+        return;
+    }
+    
+    if (confirm(`Are you sure you want to delete "${file.name}"?`)) {
+        // Create new FileAttachment objects from remaining files (avoid node reuse)
+        const remainingFiles = files.filter(f => f.id !== fileId);
+        const newFileAttachments = remainingFiles.map(f => new window.FileAttachment({
+            id: f.id,
+            name: f.name,
+            type: f.type,
+            size: f.size,
+            data: f.data,
+            uploadedBy: f.uploadedBy,
+            uploadedAt: f.uploadedAt,
+        }));
         
-        return `
-            <div class="attachment-item" data-attachment-id="${attachment.id}">
-                <div class="attachment-header">
-                    <span class="attachment-icon">${fileIcon}</span>
-                    <div class="attachment-info">
-                        <div class="attachment-name" title="${attachment.fileName}">${attachment.fileName}</div>
-                        <div class="attachment-meta">
-                            ${formatFileSize(attachment.fileSize)} • 
-                            ${attachment.uploadedBy} • 
-                            ${attachment.uploadedAt}
-                        </div>
-                    </div>
-                    <div class="attachment-actions">
-                        <button class="attachment-btn download-btn" onclick="downloadFile('${attachment.id}')" title="Download">
-                            ⬇️
-                        </button>
-                        ${canDelete ? 
-                            `<button class="attachment-btn delete-btn" onclick="deleteFileAttachment('${attachment.id}')" title="Delete (uploader only)">
-                                🗑️
-                            </button>` : 
-                            ''
-                        }
-                    </div>
-                </div>
-                ${isImage ? 
-                    `<div class="attachment-preview">
-                        <img src="${attachment.fileData}" alt="${attachment.fileName}" onclick="openImagePreview('${attachment.id}')">
-                    </div>` : 
-                    ''
-                }
-            </div>
-        `;
-    }).join('');
-    
-    attachmentsContainer.innerHTML = `
-        <div class="attachments-header">
-            <span class="attachments-title">📎 Attachments (${attachments.length})</span>
-        </div>
-        <div class="attachments-list">
-            ${attachmentsHtml}
-        </div>
-    `;
+        const newNote = new window.Note({
+            id: note.id,
+            title: note.title,
+            content: note.content,
+            author: note.author,
+            timestamp: note.timestamp,
+            votes: note.votes,
+            parentId: note.parentId,
+            level: note.level,
+            files: newFileAttachments, // Use new file attachment objects
+        });
+        
+        // Replace the note
+        notesData.root.notes.removeAt(noteIndex);
+        notesData.root.notes.insertAt(noteIndex, newNote);
+        
+        console.log('🗑️ Deleted file from note:', file.name);
+    }
 }
 
-export function openImagePreview(fileId) {
-    if (!notesData || !notesData.root || !notesData.root.fileAttachments) return;
+export function openImageModal(noteId, fileId) {
+    const file = findFileInNote(noteId, fileId);
     
-    const attachments = Array.from(notesData.root.fileAttachments);
-    const attachment = attachments.find(att => att.id === fileId);
-    
-    if (attachment) {
+    if (file) {
+        // Create modal overlay
         const modal = document.createElement('div');
-        modal.className = 'image-preview-modal';
+        modal.className = 'image-modal';
         modal.innerHTML = `
-            <div class="modal-backdrop" onclick="closeImagePreview()"></div>
-            <div class="modal-content">
-                <div class="modal-header">
-                    <span class="modal-title">${attachment.fileName}</span>
-                    <button class="modal-close" onclick="closeImagePreview()">✕</button>
-                </div>
-                <div class="modal-body">
-                    <img src="${attachment.fileData}" alt="${attachment.fileName}">
+            <div class="image-modal-overlay" onclick="closeImageModal()">
+                <div class="image-modal-content" onclick="event.stopPropagation()">
+                    <div class="image-modal-header">
+                        <h3>${escapeHtml(file.name)}</h3>
+                        <button onclick="closeImageModal()" class="image-modal-close">✕</button>
+                    </div>
+                    <div class="image-modal-body">
+                        <img src="${file.data}" alt="${escapeHtml(file.name)}" class="modal-image">
+                    </div>
+                    <div class="image-modal-footer">
+                        <button onclick="downloadFileFromNote('${noteId}', '${fileId}')" class="btn btn-primary">📥 Download</button>
+                        <span class="file-info">
+                            ${formatFileSize(file.size)} • Uploaded by ${escapeHtml(file.uploadedBy)} on ${file.uploadedAt}
+                        </span>
+                    </div>
                 </div>
             </div>
         `;
         
         document.body.appendChild(modal);
-        modal.style.display = 'block';
+        
+        // Add escape key listener
+        document.addEventListener('keydown', handleImageModalKeydown);
     }
 }
 
-export function closeImagePreview() {
-    const modal = document.querySelector('.image-preview-modal');
+export function closeImageModal() {
+    const modal = document.querySelector('.image-modal');
     if (modal) {
         document.body.removeChild(modal);
+        document.removeEventListener('keydown', handleImageModalKeydown);
     }
 }
+
+function handleImageModalKeydown(e) {
+    if (e.key === 'Escape') {
+        closeImageModal();
+    }
+}
+
+function findFileInNote(noteId, fileId) {
+    const notes = Array.from(notesData.root.notes);
+    const note = notes.find(note => note.id === noteId);
+    
+    if (note && note.files) {
+        const files = Array.from(note.files);
+        return files.find(file => file.id === fileId);
+    }
+    
+    return null;
+}
+
+// Legacy compatibility functions (for existing file attachments)
+export function getFileAttachments(noteId) {
+    if (!notesData || !notesData.root || !notesData.root.fileAttachments) return [];
+    const attachments = Array.from(notesData.root.fileAttachments);
+    return attachments.filter(attachment => attachment.noteId === noteId);
+}
+
+export function updateAllFileAttachments() {
+    // This function is called by the data change handler but not needed for inline files
+    // Files are rendered automatically as part of note rendering
+    console.log('📎 File attachments updated (inline files render automatically)');
+}
+
+// Global function exports for HTML onclick handlers
+window.downloadFileFromNote = downloadFileFromNote;
+window.viewFileFromNote = viewFileFromNote;
+window.deleteFileFromNote = deleteFileFromNote;
+window.openImageModal = openImageModal;
+window.closeImageModal = closeImageModal;

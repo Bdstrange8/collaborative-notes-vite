@@ -23,7 +23,8 @@ export function handleDataChange(event) {
     }, 50);
 }
 
-export function addNote(title, content, parentId = "") {
+// Updated addNote function with file support
+export function addNote(title, content, parentId = "", files = []) {
     if (!notesData || !notesData.root || !window.Note) {
         console.error('Cannot add note: Fluid Framework not initialized');
         return;
@@ -42,6 +43,19 @@ export function addNote(title, content, parentId = "") {
     const noteId = (notesData.root.lastNoteId + 1).toString();
     notesData.root.lastNoteId = parseInt(noteId);
 
+    // Create file attachments with proper IDs
+    const fileAttachments = files.map(file => {
+        return new window.FileAttachment({
+            id: file.id || generateFileId(),
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            data: file.data,
+            uploadedBy: file.uploadedBy || currentUser,
+            uploadedAt: file.uploadedAt || new Date().toLocaleString(),
+        });
+    });
+
     const newNote = new window.Note({
         id: noteId,
         title: title,
@@ -51,27 +65,35 @@ export function addNote(title, content, parentId = "") {
         votes: 0,
         parentId: parentId || "",
         level: level,
+        files: fileAttachments, // Embed files directly in the note
     });
 
     notesData.root.notes.insertAtEnd(newNote);
-    console.log('➕ Added note:', title, level > 0 ? `(level ${level})` : '(root level)');
+    console.log('➕ Added note:', title, level > 0 ? `(level ${level})` : '(root level)', 
+                files.length > 0 ? `with ${files.length} files` : '');
+}
+
+function generateFileId() {
+    const fileId = (notesData.root.lastFileId + 1).toString();
+    notesData.root.lastFileId = parseInt(fileId);
+    return fileId;
 }
 
 export function addSampleNote() {
-    addNote("Project Overview", "This is the main project description with key objectives and scope.");
+    addNote("Project Overview", "This is the main project description with key objectives and scope.", "", []);
     
     setTimeout(() => {
         const notes = Array.from(notesData.root.notes);
         const parentNote = notes.find(note => note.title === "Project Overview");
         if (parentNote) {
-            addNote("Phase 1: Planning", "Initial planning and requirement gathering phase.", parentNote.id);
-            addNote("Phase 2: Development", "Main development and implementation phase.", parentNote.id);
+            addNote("Phase 1: Planning", "Initial planning and requirement gathering phase.", parentNote.id, []);
+            addNote("Phase 2: Development", "Main development and implementation phase.", parentNote.id, []);
             
             setTimeout(() => {
                 const phase1Note = Array.from(notesData.root.notes).find(note => note.title === "Phase 1: Planning");
                 if (phase1Note) {
-                    addNote("Requirements Analysis", "Detailed analysis of project requirements and constraints.", phase1Note.id);
-                    addNote("Resource Planning", "Planning of human and technical resources needed.", phase1Note.id);
+                    addNote("Requirements Analysis", "Detailed analysis of project requirements and constraints.", phase1Note.id, []);
+                    addNote("Resource Planning", "Planning of human and technical resources needed.", phase1Note.id, []);
                 }
             }, 100);
         }
@@ -121,7 +143,7 @@ export function deleteNote(noteId) {
     
     const allDeletedIds = [noteId, ...getAllDescendantIds(noteId)];
     
-    // Delete related data (comments, votes, files) for all notes that will be deleted
+    // Delete related data (comments, votes) for all notes that will be deleted
     allDeletedIds.forEach(id => deleteRelatedData(id));
     
     // Delete the note and all its children
@@ -166,16 +188,18 @@ function deleteRelatedData(noteId) {
         }
     }
 
-    // Delete file attachments for this note
+    // Delete legacy file attachments for this note (backward compatibility)
     if (notesData.root.fileAttachments) {
         const attachments = Array.from(notesData.root.fileAttachments);
         for (let i = attachments.length - 1; i >= 0; i--) {
             if (attachments[i].noteId === noteId) {
                 notesData.root.fileAttachments.removeAt(i);
-                console.log('🗑️ Deleted file attachment for note:', noteId);
+                console.log('🗑️ Deleted legacy file attachment for note:', noteId);
             }
         }
     }
+    
+    // Note: Files embedded in notes will be deleted automatically when the note is deleted
 }
 
 export function clearAllNotes() {
@@ -216,6 +240,24 @@ export function reorderNote(draggedId, targetId, dropAbove) {
     
     const draggedNote = notes[draggedIndex];
     
+    // Create new FileAttachment objects from existing files (avoid node reuse)
+    const newFileAttachments = [];
+    if (draggedNote.files && draggedNote.files.length > 0) {
+        const existingFiles = Array.from(draggedNote.files);
+        existingFiles.forEach(file => {
+            const newFileAttachment = new window.FileAttachment({
+                id: file.id,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+                data: file.data,
+                uploadedBy: file.uploadedBy,
+                uploadedAt: file.uploadedAt,
+            });
+            newFileAttachments.push(newFileAttachment);
+        });
+    }
+    
     // Create a new note object with the same data (required by Fluid Framework)
     const newNote = new window.Note({
         id: draggedNote.id,
@@ -226,6 +268,7 @@ export function reorderNote(draggedId, targetId, dropAbove) {
         votes: draggedNote.votes,
         parentId: draggedNote.parentId,
         level: draggedNote.level,
+        files: newFileAttachments, // Use new file attachment objects
     });
     
     // Remove the original note

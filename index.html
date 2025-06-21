@@ -10,7 +10,7 @@
     <div class="container">
         <div class="header">
             <h1>📄 Document Collaboration</h1>
-            <p>Create structured documents with real-time collaborative editing</p>
+            <p>Create structured documents with real-time collaborative editing and file attachments</p>
         </div>
         
         <div id="connectionStatus" class="connection-status status-connecting">
@@ -44,6 +44,14 @@
             <div class="form-group">
                 <label>Content:</label>
                 <textarea id="noteContent" placeholder="Enter section content..."></textarea>
+            </div>
+            <div class="form-group">
+                <label>Attach Files:</label>
+                <input type="file" id="noteFiles" multiple accept="*/*" class="file-input">
+                <div class="file-input-help">
+                    📎 You can attach images, documents, videos, and other files (max 10MB each)
+                </div>
+                <!-- File preview will be inserted here dynamically -->
             </div>
             <div class="form-group">
                 <label>Parent Section:</label>

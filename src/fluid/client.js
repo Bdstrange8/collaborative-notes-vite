@@ -20,15 +20,11 @@ export async function initializeFluidFramework() {
         
         const client = new AzureClient({
             connection: {
+                type: "remote",
                 tenantId: AzureConfig.tenantId,
                 endpoint: AzureConfig.serviceEndpoint,
-                type: "remote",
-                tokenProvider: async () => {
-                    const token = await AzureConfig.getToken();
-                    return {
-                        token: token.jwt,
-                        expiresOn: token.expiresOn
-                    };
+                tokenProvider: {
+                    token: AzureConfig.primaryKey,
                 },
             },
         });

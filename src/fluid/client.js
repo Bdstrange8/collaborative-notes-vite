@@ -1,10 +1,11 @@
 import { SharedTree, TreeViewConfiguration, Tree } from "fluid-framework";
-import { TinyliciousClient } from "@fluidframework/tinylicious-client";
+import { AzureClient } from "@fluidframework/azure-client";
 import { createSchemas } from './schemas.js';
 import { handleDataChange, addSampleNote } from './data-handlers.js';
 import { addActiveUser, updateUserPresence, removeCurrentUser, cleanupInactiveUsers } from '../components/user-presence.js';
 import { renderAllNotes } from '../components/notes-renderer.js';
 import { updateConnectionStatus, showCollaborationInfo } from '../ui/ui-utils.js';
+import { AzureConfig } from './config.js';
 
 // Global variables
 export let fluidContainer = null;
@@ -15,13 +16,19 @@ console.log('👤 Current user:', currentUser);
 
 export async function initializeFluidFramework() {
     try {
-        console.log('🔧 Initializing Fluid Framework...');
+        console.log('🔧 Initializing Fluid Framework with Azure...');
         
-        // Test Tinylicious connection first
-        await testTinyliciousConnection();
-        
-        const client = new TinyliciousClient();
-        console.log('✅ TinyliciousClient created');
+        const client = new AzureClient({
+            connection: {
+                type: "remote",
+                tenantId: AzureConfig.tenantId,
+                tokenProvider: AzureConfig.primaryKey,
+                endpoint: AzureConfig.serviceEndpoint,
+                orderer: AzureConfig.serviceEndpoint,
+                storage: AzureConfig.serviceEndpoint,
+            },
+        });
+        console.log('✅ Azure Fluid Relay client created');
         
         const { schemas, treeViewConfiguration } = createSchemas();
         const containerSchema = {
@@ -48,7 +55,7 @@ export async function initializeFluidFramework() {
         }
         
         renderAllNotes();
-        updateConnectionStatus('connected', '🔗 Connected to Tinylicious - Real-time collaboration active!');
+        updateConnectionStatus('connected', '🔗 Connected to Azure Fluid Relay - Real-time collaboration active!');
         showCollaborationInfo();
         
         console.log('🎉 Fluid Framework initialized successfully!');
@@ -63,39 +70,26 @@ export async function initializeFluidFramework() {
     }
 }
 
-async function testTinyliciousConnection() {
-    try {
-        const testResponse = await fetch('http://localhost:7070');
-        if (!testResponse.ok) {
-            throw new Error(`Tinylicious server responded with status: ${testResponse.status}`);
-        }
-        console.log('✅ Tinylicious server is reachable on port 7070');
-    } catch (fetchError) {
-        throw new Error(`Cannot reach Tinylicious server at localhost:7070. Make sure it's running with: npx tinylicious`);
-    }
-}
-
 async function getOrCreateContainer(client, containerSchema) {
     let container, id;
     
     if (location.hash) {
         id = location.hash.substring(1);
         try {
-            const result = await client.getContainer(id, containerSchema, "2");
-            container = result.container;
+            container = await client.getContainer(id, containerSchema);
             console.log('✅ Loaded existing container for collaboration:', id);
         } catch (error) {
             console.log("Container load failed, creating new one:", error.message);
-            const result = await client.createContainer(containerSchema, "2");
-            container = result.container;
-            id = await container.attach();
+            const createResponse = await client.createContainer(containerSchema);
+            container = createResponse.container;
+            id = createResponse.id;
             location.hash = id;
             console.log('✅ Created new container:', id);
         }
     } else {
-        const result = await client.createContainer(containerSchema, "2");
-        container = result.container;
-        id = await container.attach();
+        const createResponse = await client.createContainer(containerSchema);
+        container = createResponse.container;
+        id = createResponse.id;
         location.hash = id;
         console.log('✅ Created new container:', id);
     }
@@ -278,18 +272,12 @@ function setupEventListeners() {
 }
 
 function handleInitializationError(error) {
-    updateConnectionStatus('error', '⚠️ Failed to connect to Tinylicious. Make sure it\'s running on localhost:7070');
+    updateConnectionStatus('error', '⚠️ Failed to connect to Azure Fluid Relay');
     
     document.getElementById('notesContainer').innerHTML = `
         <div style="background: #f8d7da; color: #721c24; padding: 20px; border-radius: 8px;">
             <h3>🚫 Connection Failed</h3>
-            <p>Could not connect to Tinylicious server.</p>
-            <p><strong>To fix this:</strong></p>
-            <ol style="margin: 15px 0; padding-left: 20px;">
-                <li>Stop any existing Tinylicious: <code>pkill -f tinylicious</code></li>
-                <li>Start fresh: <code>npx tinylicious</code></li>
-                <li>Refresh this page</li>
-            </ol>
+            <p>Could not connect to Azure Fluid Relay.</p>
             <p><strong>Error:</strong> ${error.message}</p>
             ${error.message.includes('Schema incompatible') ? 
                 '<p><strong>Note:</strong> If you see "Schema incompatible", the app will create a new document with the updated features.</p>' : 

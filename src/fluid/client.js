@@ -23,7 +23,13 @@ export async function initializeFluidFramework() {
                 tenantId: AzureConfig.tenantId,
                 endpoint: AzureConfig.serviceEndpoint,
                 type: "remote",
-                tokenProvider: AzureConfig.getToken,
+                tokenProvider: async () => {
+                    const token = await AzureConfig.getToken();
+                    return {
+                        token: token.jwt,
+                        expiresOn: token.expiresOn
+                    };
+                },
             },
         });
         console.log('✅ Azure Fluid Relay client created');

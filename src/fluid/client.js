@@ -23,9 +23,11 @@ export async function initializeFluidFramework() {
                 tenantId: AzureConfig.tenantId,
                 endpoint: AzureConfig.serviceEndpoint,
                 type: "remote",
-                tokenProvider: async () => {
+                tokenProvider: AzureConfig.primaryKey,
+                bearerTokenProvider: async () => {
                     return {
-                        jwt: AzureConfig.primaryKey,
+                        token: AzureConfig.primaryKey,
+                        expiresAt: Date.now() + 3600 * 1000, // 1 hour from now
                     };
                 },
             },

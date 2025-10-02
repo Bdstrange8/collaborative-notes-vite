@@ -7,7 +7,6 @@ import { addActiveUser, updateUserPresence, removeCurrentUser, cleanupInactiveUs
 import { renderAllNotes } from '../components/notes-renderer.js';
 import { updateConnectionStatus, showCollaborationInfo } from '../ui/ui-utils.js';
 import { AzureConfig } from './config.js';
-import { AzureConfig } from './config.js';
 
 // Global variables
 export let fluidContainer = null;

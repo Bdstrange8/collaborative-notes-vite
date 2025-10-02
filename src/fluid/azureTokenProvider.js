@@ -47,7 +47,7 @@ export class AzureTokenProvider {
     }
 
     async fetchStorageToken(tenantId, documentId) {
-        const token = await this.generateToken(tenantId, documentId, ['doc:read', 'doc:write']);
+        const token = await this.generateToken(tenantId, documentId, ['doc:read', 'doc:write', 'summary:write']);
         return {
             jwt: token,
             fromCache: false,

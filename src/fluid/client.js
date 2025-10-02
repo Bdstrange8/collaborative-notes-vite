@@ -1,5 +1,5 @@
 import { SharedTree, TreeViewConfiguration, Tree } from "fluid-framework";
-import { AzureClient } from "@fluidframework/azure-client";
+import { TinyliciousClient } from "@fluidframework/tinylicious-client";
 import { createSchemas } from './schemas.js';
 import { handleDataChange, addSampleNote } from './data-handlers.js';
 import { addActiveUser, updateUserPresence, removeCurrentUser, cleanupInactiveUsers } from '../components/user-presence.js';
@@ -18,21 +18,25 @@ export async function initializeFluidFramework() {
     try {
         console.log('🔧 Initializing Fluid Framework with Azure...');
         
-        const client = new AzureClient({
-            connection: {
-                type: "remote",
-                tenantId: AzureConfig.tenantId,
-                endpoint: AzureConfig.serviceEndpoint,
-                tokenProvider: {
-                    token: AzureConfig.primaryKey,
-                },
-            },
-        });
-        console.log('✅ Azure Fluid Relay client created');
+        // Temporarily using TinyliciousClient to test if IdCompressor works
+        const client = new TinyliciousClient();
+        console.log('✅ Tinylicious client created (local testing)');
         
         const { schemas, treeViewConfiguration } = createSchemas();
+        
+        // Container schema with runtime options to enable IdCompressor
+        // The key is that runtime options must be nested under 'runtimeOptions'
         const containerSchema = {
             initialObjects: { notesTree: SharedTree },
+            runtimeOptions: {
+                summaryOptions: {
+                    summaryConfigOverrides: {
+                        state: "disabled",
+                    },
+                },
+                // This is the critical setting for SharedTree
+                idCompressorMode: "on",
+            },
         };
 
         const { container, id } = await getOrCreateContainer(client, containerSchema);
@@ -76,20 +80,24 @@ async function getOrCreateContainer(client, containerSchema) {
     if (location.hash) {
         id = location.hash.substring(1);
         try {
-            container = await client.getContainer(id, containerSchema);
+            // CRITICAL: Pass "2" as compatibility mode to enable IdCompressor
+            const result = await client.getContainer(id, containerSchema, "2");
+            container = result.container;
             console.log('✅ Loaded existing container for collaboration:', id);
         } catch (error) {
             console.log("Container load failed, creating new one:", error.message);
-            const createResponse = await client.createContainer(containerSchema);
-            container = createResponse.container;
-            id = createResponse.id;
+            // CRITICAL: Pass "2" as compatibility mode to enable IdCompressor
+            const result = await client.createContainer(containerSchema, "2");
+            container = result.container;
+            id = await container.attach();
             location.hash = id;
             console.log('✅ Created new container:', id);
         }
     } else {
-        const createResponse = await client.createContainer(containerSchema);
-        container = createResponse.container;
-        id = createResponse.id;
+        // CRITICAL: Pass "2" as compatibility mode to enable IdCompressor
+        const result = await client.createContainer(containerSchema, "2");
+        container = result.container;
+        id = await container.attach();
         location.hash = id;
         console.log('✅ Created new container:', id);
     }

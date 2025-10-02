@@ -10,8 +10,9 @@
       "tinylicious": "npx tinylicious"
     },
     "dependencies": {
-      "fluid-framework": "^2.0.0",
-      "@fluidframework/tinylicious-client": "^2.0.0"
+      "fluid-framework": "2.33.2",
+      "@fluidframework/azure-client": "2.33.2",
+      "@fluidframework/tinylicious-client": "2.33.2"
     },
     "devDependencies": {
       "vite": "^5.0.0"

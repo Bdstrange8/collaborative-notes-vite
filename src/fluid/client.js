@@ -1,6 +1,7 @@
 import { SharedTree, TreeViewConfiguration, Tree } from "fluid-framework";
 import { TinyliciousClient } from "@fluidframework/tinylicious-client";
-import { AzureClient } from "@fluidframework/azure-client";
+import { AzureClient, AzureClientProps } from "@fluidframework/azure-client";
+import { InsecureTokenProvider } from "@fluidframework/test-runtime-utils";
 import { createSchemas } from './schemas.js';
 import { handleDataChange, addSampleNote } from './data-handlers.js';
 import { addActiveUser, updateUserPresence, removeCurrentUser, cleanupInactiveUsers } from '../components/user-presence.js';
@@ -32,9 +33,7 @@ export async function initializeFluidFramework() {
                     type: "remote",
                     tenantId: AzureConfig.tenantId,
                     endpoint: AzureConfig.serviceEndpoint,
-                    tokenProvider: {
-                        token: AzureConfig.primaryKey,
-                    },
+                    tokenProvider: new InsecureTokenProvider(AzureConfig.primaryKey, { id: currentUser }),
                 },
             });
             console.log('✅ Azure Fluid Relay client created (production)');

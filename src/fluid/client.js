@@ -1,10 +1,12 @@
 import { SharedTree, TreeViewConfiguration, Tree } from "fluid-framework";
 import { TinyliciousClient } from "@fluidframework/tinylicious-client";
+import { AzureClient } from "@fluidframework/azure-client";
 import { createSchemas } from './schemas.js';
 import { handleDataChange, addSampleNote } from './data-handlers.js';
 import { addActiveUser, updateUserPresence, removeCurrentUser, cleanupInactiveUsers } from '../components/user-presence.js';
 import { renderAllNotes } from '../components/notes-renderer.js';
 import { updateConnectionStatus, showCollaborationInfo } from '../ui/ui-utils.js';
+import { AzureConfig } from './config.js';
 import { AzureConfig } from './config.js';
 
 // Global variables
@@ -16,11 +18,28 @@ console.log('👤 Current user:', currentUser);
 
 export async function initializeFluidFramework() {
     try {
-        console.log('🔧 Initializing Fluid Framework with Azure...');
+        console.log('🔧 Initializing Fluid Framework...');
         
-        // Temporarily using TinyliciousClient to test if IdCompressor works
-        const client = new TinyliciousClient();
-        console.log('✅ Tinylicious client created (local testing)');
+        // Use TinyliciousClient for local development, AzureClient for production
+        const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+        
+        let client;
+        if (isLocalhost) {
+            client = new TinyliciousClient();
+            console.log('✅ Tinylicious client created (local development)');
+        } else {
+            client = new AzureClient({
+                connection: {
+                    type: "remote",
+                    tenantId: AzureConfig.tenantId,
+                    endpoint: AzureConfig.serviceEndpoint,
+                    tokenProvider: {
+                        token: AzureConfig.primaryKey,
+                    },
+                },
+            });
+            console.log('✅ Azure Fluid Relay client created (production)');
+        }
         
         const { schemas, treeViewConfiguration } = createSchemas();
         

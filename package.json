@@ -12,7 +12,8 @@
     "dependencies": {
         "@fluidframework/azure-client": "2.33.2",
         "@fluidframework/tinylicious-client": "2.33.2",
-        "fluid-framework": "2.33.2"
+        "fluid-framework": "2.33.2",
+        "jsonwebtoken": "^9.0.2"
     },
     "devDependencies": {
         "vite": "^5.0.0"

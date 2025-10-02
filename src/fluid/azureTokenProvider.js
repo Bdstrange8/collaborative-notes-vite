@@ -1,8 +1,8 @@
-import jwt from 'jsonwebtoken';
+import * as jose from 'jose';
 
 /**
  * Azure Fluid Relay Token Provider
- * Generates JWT tokens using the primary key
+ * Generates JWT tokens using the primary key (browser-compatible)
  */
 export class AzureTokenProvider {
     constructor(tenantId, primaryKey, userId) {
@@ -11,7 +11,7 @@ export class AzureTokenProvider {
         this.userId = userId;
     }
 
-    generateToken(tenantId, documentId, scopes) {
+    async generateToken(tenantId, documentId, scopes) {
         const payload = {
             documentId: documentId,
             scopes: scopes,
@@ -25,13 +25,21 @@ export class AzureTokenProvider {
             ver: '1.0',
         };
 
-        return jwt.sign(payload, this.primaryKey, {
-            algorithm: 'HS256',
-        });
+        // Convert the primary key to a Uint8Array for jose
+        const secret = new TextEncoder().encode(this.primaryKey);
+        
+        // Sign the JWT using jose
+        const token = await new jose.SignJWT(payload)
+            .setProtectedHeader({ alg: 'HS256' })
+            .setIssuedAt()
+            .setExpirationTime('1h')
+            .sign(secret);
+
+        return token;
     }
 
     async fetchOrdererToken(tenantId, documentId) {
-        const token = this.generateToken(tenantId, documentId, ['doc:read', 'doc:write', 'summary:write']);
+        const token = await this.generateToken(tenantId, documentId, ['doc:read', 'doc:write', 'summary:write']);
         return {
             jwt: token,
             fromCache: false,
@@ -39,7 +47,7 @@ export class AzureTokenProvider {
     }
 
     async fetchStorageToken(tenantId, documentId) {
-        const token = this.generateToken(tenantId, documentId, ['doc:read', 'doc:write']);
+        const token = await this.generateToken(tenantId, documentId, ['doc:read', 'doc:write']);
         return {
             jwt: token,
             fromCache: false,
